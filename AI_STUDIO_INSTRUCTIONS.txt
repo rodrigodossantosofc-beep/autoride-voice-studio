@@ -1,22 +1,14 @@
 AUTORIDE AI — INSTRUÇÃO PARA O AGENTE DO GOOGLE AI STUDIO
 
-Este projeto é uma interface premium para um motor de clonagem de voz OmniVoice que já funciona fora do AI Studio em GPU.
+Este projeto é a interface premium do Autoride AI conectável ao motor OmniVoice que roda em GPU fora do AI Studio.
 
 REGRAS:
 1. Não substitua OmniVoice por Gemini TTS.
 2. Não remova nenhuma etapa do fluxo.
-3. Preserve:
-   - referência de identidade por áudio/vídeo
-   - transcrição da identidade
-   - roteiro
-   - performance opcional por áudio/vídeo
-   - transcrição da performance
-   - força do espelhamento
-   - espelhamento de pausas
-   - velocidade base
-   - resultado com MP3/WAV
-4. Não simplifique o design.
-5. Preserve o visual dark premium, sidebar, cards, painel de resultado, waveform, estados de loading e microinterações.
-6. Por enquanto, mantenha o botão GERAR VOZ em modo demo visual.
-7. A conexão real será feita depois com um endpoint HTTP do OmniVoice.
-8. Se precisar alterar estrutura de arquivos para compatibilidade com AI Studio, altere apenas a infraestrutura, não o fluxo nem o design.
+3. Preserve referência de identidade por áudio/vídeo, transcrição, roteiro, performance opcional, força do espelhamento, pausas, velocidade e saídas MP3/WAV.
+4. Não simplifique o design dark premium.
+5. O botão GERAR VOZ agora usa uma API HTTP real do OmniVoice.
+6. A URL temporária da API é configurada pelo botão de engrenagem da interface e fica salva no navegador.
+7. A API esperada possui GET /health e POST /generate em multipart/form-data.
+8. Não transforme novamente a geração em demonstração simulada.
+9. Se precisar corrigir incompatibilidades do AI Studio, altere apenas a infraestrutura e preserve o fluxo e o design.
