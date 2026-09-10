@@ -1,9 +1,9 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   AudioLines, ChevronDown, CircleUserRound, Clock3, Download, FileAudio,
-  Gauge, Headphones, Home, Mic2, MoreHorizontal, Play, Plus, Radio,
-  Settings2, SlidersHorizontal, Sparkles, Upload, Video, WandSparkles,
-  Waveform, Zap, Check, Pause, RotateCcw
+  Gauge, Headphones, Home, Mic2, MoreHorizontal, Play,
+  Settings2, SlidersHorizontal, Sparkles, Video, WandSparkles,
+  Zap, Check, Pause, RotateCcw
 } from 'lucide-react';
 
 type FileSlotProps = {
@@ -21,18 +21,231 @@ function FileSlot({title, subtitle, accept, icon, file, onFile}: FileSlotProps) 
     <button className={`file-slot ${file ? 'file-slot--active' : ''}`} onClick={() => input.current?.click()}>
       <input ref={input} type="file" hidden accept={accept} onChange={(e) => onFile(e.target.files?.[0] ?? null)} />
       <span className="file-slot__icon">{file ? <Check size={18}/> : icon}</span>
-      <span className="file-slot__copy"><strong>{file ? file.name : title}</strong><small>{file ? `${(file.size / 1024 / 1024).toFixed(1)} MB · pronto` : subtitle}</small></span>
+      <span className="file-slot__copy">
+        <strong>{file ? file.name : title}</strong>
+        <small>{file ? `${(file.size / 1024 / 1024).toFixed(1)} MB · pronto` : subtitle}</small>
+      </span>
       <span className="file-slot__action">{file ? 'Trocar' : 'Enviar'}</span>
     </button>
   );
 }
-function WaveBars() { const bars=useMemo(()=>Array.from({length:72},(_,i)=>13+Math.abs(Math.sin(i*.61)*28)+Math.abs(Math.cos(i*.23)*14)),[]); return <div className="wave">{bars.map((h,i)=><span key={i} style={{height:`${h}%`}} />)}</div>; }
+
+function WaveBars() {
+  const bars = useMemo(() => Array.from({length: 72}, (_, i) => 13 + Math.abs(Math.sin(i * .61) * 28) + Math.abs(Math.cos(i * .23) * 14)), []);
+  return <div className="wave">{bars.map((h, i) => <span key={i} style={{height: `${h}%`}} />)}</div>;
+}
+
 export default function App() {
-  const [voiceAudio,setVoiceAudio]=useState<File|null>(null), [voiceVideo,setVoiceVideo]=useState<File|null>(null), [perfAudio,setPerfAudio]=useState<File|null>(null), [perfVideo,setPerfVideo]=useState<File|null>(null);
-  const [voiceTranscript,setVoiceTranscript]=useState(''), [perfTranscript,setPerfTranscript]=useState('');
-  const [script,setScript]=useState('Sua voz não precisa parecer gerada por inteligência artificial. Ela precisa soar como você — com ritmo, pausa e intenção.');
-  const [speed,setSpeed]=useState(1), [strength,setStrength]=useState(.85), [mirrorPauses,setMirrorPauses]=useState(true), [performanceOpen,setPerformanceOpen]=useState(true), [advancedOpen,setAdvancedOpen]=useState(false);
-  const [status,setStatus]=useState<'idle'|'generating'|'done'>('idle'), [progress,setProgress]=useState(0), [playing,setPlaying]=useState(false);
-  const generate=()=>{if(!voiceAudio&&!voiceVideo)return alert('Envie uma amostra de voz primeiro.');if(!script.trim())return alert('Escreva o roteiro.');setStatus('generating');setProgress(7);[18,31,48,66,82,94,100].forEach((v,i)=>setTimeout(()=>{setProgress(v);if(v===100)setStatus('done')},420*(i+1)))};
-  return <div className="app"><aside className="sidebar"><div className="brand"><div className="brand__mark">A</div><div><strong>Autoride <i>AI</i></strong><span>Voice Studio</span></div></div><nav className="nav"><span className="nav__section">Workspace</span><button><Home size={17}/> Home</button><button className="active"><AudioLines size={17}/> Voice Studio <span className="nav__dot"/></button><button><Mic2 size={17}/> Minhas vozes</button><button><Clock3 size={17}/> Histórico</button><span className="nav__section nav__section--lower">Ferramentas</span><button><SlidersHorizontal size={17}/> Presets</button><button><Settings2 size={17}/> Configurações</button></nav><div className="sidebar__bottom"><div className="engine"><span className="engine__dot"/><div><strong>OmniVoice</strong><small>GPU engine online</small></div></div><button className="profile"><CircleUserRound size={20}/><div><strong>Meu Studio</strong><small>Pro workspace</small></div><MoreHorizontal size={17}/></button></div></aside><main className="main"><header className="topbar"><div><span className="eyebrow">VOICE GENERATION</span><h1>Voice Studio</h1></div><div className="topbar__actions"><div className="engine-pill"><span/> OmniVoice · Ready</div><button className="icon-btn"><Settings2 size={17}/></button></div></header><section className="workspace"><div className="composer"><section className="card identity-card"><div className="card__heading"><div className="step">01</div><div><h2>Identidade da voz</h2><p>A amostra define quem está falando.</p></div><div className="badge">VOICE ID</div></div><div className="upload-grid"><FileSlot title="Áudio de referência" subtitle="WAV, MP3 · ideal até 10s" accept="audio/*" icon={<FileAudio size={18}/>} file={voiceAudio} onFile={setVoiceAudio}/><FileSlot title="Ou envie um vídeo" subtitle="O áudio será extraído" accept="video/*" icon={<Video size={18}/>} file={voiceVideo} onFile={setVoiceVideo}/></div><details className="clean-details"><summary>Transcrição da amostra <span>recomendado</span></summary><textarea value={voiceTranscript} onChange={e=>setVoiceTranscript(e.target.value)} placeholder="Escreva exatamente o que foi falado na amostra..."/></details></section><section className="card script-card"><div className="card__heading"><div className="step">02</div><div><h2>Roteiro</h2><p>Escreva exatamente o que a voz deve falar.</p></div><div className="chars">{script.length} caracteres</div></div><div className="script-shell"><textarea value={script} onChange={e=>setScript(e.target.value)} placeholder="Cole ou escreva o roteiro..."/><div className="script-toolbar"><span><Sparkles size={14}/> Português · Brasil</span><span>Modelo: OmniVoice</span></div></div></section><section className={`card performance-card ${performanceOpen?'is-open':''}`}><button className="section-toggle" onClick={()=>setPerformanceOpen(!performanceOpen)}><div className="card__heading card__heading--toggle"><div className="step">03</div><div><h2>Performance <span className="beta">BETA</span></h2><p>Use outra gravação para orientar ritmo, pausas e dinâmica.</p></div></div><ChevronDown size={18}/></button>{performanceOpen&&<div className="performance-body"><div className="notice"><WandSparkles size={17}/><span>A identidade vocal continua vindo da etapa 01. Aqui usamos somente a <b>interpretação</b> da referência.</span></div><div className="upload-grid"><FileSlot title="Áudio de performance" subtitle="Cadência, energia e pausas" accept="audio/*" icon={<Headphones size={18}/>} file={perfAudio} onFile={setPerfAudio}/><FileSlot title="Ou envie um vídeo" subtitle="A fala será analisada" accept="video/*" icon={<Video size={18}/>} file={perfVideo} onFile={setPerfVideo}/></div><textarea className="mini-textarea" value={perfTranscript} onChange={e=>setPerfTranscript(e.target.value)} placeholder="Transcrição da performance · opcional"/><div className="control-row"><div className="control"><div className="control__top"><span>Força do espelhamento</span><b>{Math.round(strength*100)}%</b></div><input type="range" min="0" max="1" step=".05" value={strength} onChange={e=>setStrength(Number(e.target.value))}/></div><label className="switch-line"><span><strong>Estrutura de pausas</strong><small>Espelhar pausas da referência</small></span><input type="checkbox" checked={mirrorPauses} onChange={e=>setMirrorPauses(e.target.checked)}/><i/></label></div></div>}</section><section className="card advanced-card"><button className="section-toggle" onClick={()=>setAdvancedOpen(!advancedOpen)}><div className="inline-title"><Gauge size={17}/><span>Ajustes avançados</span></div><ChevronDown size={18}/></button>{advancedOpen&&<div className="advanced-body"><div className="control"><div className="control__top"><span>Velocidade base</span><b>{speed.toFixed(2)}×</b></div><input type="range" min=".7" max="1.3" step=".05" value={speed} onChange={e=>setSpeed(Number(e.target.value))}/></div></div>}</section><button className={`generate ${status==='generating'?'generating':''}`} onClick={generate} disabled={status==='generating'}>{status==='generating'?<><span className="spinner"/> GERANDO · {progress}%</>:<><Zap size={18}/> GERAR VOZ</>}</button></div><aside className="result-panel"><div className="result-panel__top"><div><span className="eyebrow">STUDIO OUTPUT</span><h2>Resultado</h2></div><div className={`status-pill ${status}`}><span/>{status==='idle'?'Aguardando':status==='generating'?'Gerando':'Concluído'}</div></div><div className={`player-card ${status==='done'?'player-card--ready':''}`}><div className="player-art"><AudioLines size={30}/>{status==='done'&&<span className="ready-check"><Check size={12}/></span>}</div><div className="player-copy"><strong>{status==='done'?'autoride_voice_001':'Sua geração aparecerá aqui'}</strong><small>{status==='done'?'OmniVoice · Português · 00:08':'Envie a voz e escreva o roteiro'}</small></div></div><div className="wave-wrap"><WaveBars/>{status==='generating'&&<div className="progress-line" style={{width:`${progress}%`}}/>}</div><div className="transport"><button className="round"><RotateCcw size={15}/></button><button className="play" disabled={status!=='done'} onClick={()=>setPlaying(!playing)}>{playing?<Pause size={20}/>:<Play size={20} fill="currentColor"/>}</button><button className="round"><MoreHorizontal size={16}/></button></div><div className="time-row"><span>00:00</span><span>{status==='done'?'00:08':'--:--'}</span></div><div className="generation-meta"><div><span>Voz</span><strong>{voiceAudio?.name||voiceVideo?.name||'Não selecionada'}</strong></div><div><span>Velocidade</span><strong>{speed.toFixed(2)}×</strong></div><div><span>Performance</span><strong>{perfAudio||perfVideo?`${Math.round(strength*100)}%`:'Desativada'}</strong></div></div><div className="download-grid"><button disabled={status!=='done'}><Download size={16}/><span><strong>MP3</strong><small>Alta qualidade</small></span></button><button disabled={status!=='done'}><Download size={16}/><span><strong>WAV</strong><small>Sem compressão</small></span></button></div><div className="pro-tip"><Sparkles size={16}/><p><b>Studio tip</b><br/>Amostra de voz limpa e curta tende a preservar melhor identidade e naturalidade.</p></div><div className="engine-card"><div><span className="live-dot"/><b>Engine</b></div><span>OmniVoice / CUDA</span></div></aside></section></main></div>;
+  const [voiceAudio, setVoiceAudio] = useState<File|null>(null);
+  const [voiceVideo, setVoiceVideo] = useState<File|null>(null);
+  const [perfAudio, setPerfAudio] = useState<File|null>(null);
+  const [perfVideo, setPerfVideo] = useState<File|null>(null);
+  const [voiceTranscript, setVoiceTranscript] = useState('');
+  const [perfTranscript, setPerfTranscript] = useState('');
+  const [script, setScript] = useState('Sua voz não precisa parecer gerada por inteligência artificial. Ela precisa soar como você — com ritmo, pausa e intenção.');
+  const [speed, setSpeed] = useState(1);
+  const [strength, setStrength] = useState(.85);
+  const [mirrorPauses, setMirrorPauses] = useState(true);
+  const [performanceOpen, setPerformanceOpen] = useState(true);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [status, setStatus] = useState<'idle'|'generating'|'done'>('idle');
+  const [progress, setProgress] = useState(0);
+  const [playing, setPlaying] = useState(false);
+  const [apiUrl, setApiUrl] = useState(() => localStorage.getItem('autoride_api_url') || '');
+  const [engineConnected, setEngineConnected] = useState(false);
+  const [mp3Url, setMp3Url] = useState('');
+  const [wavUrl, setWavUrl] = useState('');
+  const [duration, setDuration] = useState(0);
+  const [errorMessage, setErrorMessage] = useState('');
+  const audioPlayer = useRef<HTMLAudioElement>(null);
+
+  const normalizedApiUrl = apiUrl.trim().replace(/\/$/, '');
+
+  const checkEngine = async (url = normalizedApiUrl) => {
+    if (!url) { setEngineConnected(false); return false; }
+    try {
+      const response = await fetch(`${url.replace(/\/$/, '')}/health`);
+      const data = await response.json();
+      const ok = response.ok && data?.status === 'ok';
+      setEngineConnected(ok);
+      return ok;
+    } catch {
+      setEngineConnected(false);
+      return false;
+    }
+  };
+
+  useEffect(() => {
+    if (normalizedApiUrl) checkEngine(normalizedApiUrl);
+  }, []);
+
+  const configureApi = async () => {
+    const typed = window.prompt('Cole aqui o link do motor OmniVoice que aparece no Colab (termina em trycloudflare.com):', normalizedApiUrl);
+    if (typed === null) return;
+    const clean = typed.trim().replace(/\/$/, '');
+    setApiUrl(clean);
+    localStorage.setItem('autoride_api_url', clean);
+    if (!clean) { setEngineConnected(false); return; }
+    const ok = await checkEngine(clean);
+    alert(ok ? 'OmniVoice conectado com sucesso.' : 'Não consegui conectar. Confira se o Colab ainda está rodando e se o link foi copiado inteiro.');
+  };
+
+  const downloadAudio = (url: string, filename: string) => {
+    if (!url) return;
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  };
+
+  const togglePlayback = async () => {
+    if (!audioPlayer.current || !mp3Url) return;
+    if (audioPlayer.current.paused) { await audioPlayer.current.play(); setPlaying(true); }
+    else { audioPlayer.current.pause(); setPlaying(false); }
+  };
+
+  const generate = async () => {
+    if (!voiceAudio && !voiceVideo) { alert('Envie uma amostra de voz primeiro.'); return; }
+    if (!script.trim()) { alert('Escreva o roteiro.'); return; }
+    if (!normalizedApiUrl) {
+      alert('Primeiro conecte o motor OmniVoice. Clique no botão de configurações no topo e cole o link gerado pelo Colab.');
+      return;
+    }
+
+    setStatus('generating');
+    setProgress(8);
+    setErrorMessage('');
+    setMp3Url('');
+    setWavUrl('');
+    setPlaying(false);
+
+    const timer = window.setInterval(() => {
+      setProgress(p => Math.min(88, p + Math.max(1, Math.round((88 - p) * 0.08))));
+    }, 650);
+
+    try {
+      const form = new FormData();
+      if (voiceAudio) form.append('voice_audio', voiceAudio);
+      if (voiceVideo) form.append('voice_video', voiceVideo);
+      form.append('voice_transcript', voiceTranscript);
+      form.append('script', script.trim());
+      form.append('speed', String(speed));
+      if (perfAudio) form.append('performance_audio', perfAudio);
+      if (perfVideo) form.append('performance_video', perfVideo);
+      form.append('performance_transcript', perfTranscript);
+      form.append('performance_strength', String(strength));
+      form.append('mirror_pauses', String(mirrorPauses));
+
+      const response = await fetch(`${normalizedApiUrl}/generate`, { method: 'POST', body: form });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || data?.status !== 'ok') throw new Error(data?.detail || data?.message || `Erro ${response.status}`);
+
+      setMp3Url(data.mp3_data_url || data.audio_url || '');
+      setWavUrl(data.wav_data_url || '');
+      setProgress(100);
+      setStatus('done');
+      setEngineConnected(true);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Falha ao gerar voz.';
+      setErrorMessage(message);
+      setStatus('idle');
+      setProgress(0);
+      setEngineConnected(false);
+      alert(`Não foi possível gerar a voz: ${message}`);
+    } finally {
+      window.clearInterval(timer);
+    }
+  };
+
+  return (
+    <div className="app">
+      <aside className="sidebar">
+        <div className="brand"><div className="brand__mark">A</div><div><strong>Autoride <i>AI</i></strong><span>Voice Studio</span></div></div>
+        <nav className="nav">
+          <span className="nav__section">Workspace</span>
+          <button><Home size={17}/> Home</button>
+          <button className="active"><AudioLines size={17}/> Voice Studio <span className="nav__dot"/></button>
+          <button><Mic2 size={17}/> Minhas vozes</button>
+          <button><Clock3 size={17}/> Histórico</button>
+          <span className="nav__section nav__section--lower">Ferramentas</span>
+          <button><SlidersHorizontal size={17}/> Presets</button>
+          <button onClick={configureApi}><Settings2 size={17}/> Configurações</button>
+        </nav>
+        <div className="sidebar__bottom">
+          <div className="engine"><span className="engine__dot"/><div><strong>OmniVoice</strong><small>{engineConnected ? 'GPU engine online' : 'Aguardando Colab'}</small></div></div>
+          <button className="profile"><CircleUserRound size={20}/><div><strong>Meu Studio</strong><small>Pro workspace</small></div><MoreHorizontal size={17}/></button>
+        </div>
+      </aside>
+
+      <main className="main">
+        <header className="topbar">
+          <div><span className="eyebrow">VOICE GENERATION</span><h1>Voice Studio</h1></div>
+          <div className="topbar__actions">
+            <div className={`engine-pill ${engineConnected ? 'online' : 'offline'}`}><span/> OmniVoice · {engineConnected ? 'Online' : 'Conectar'}</div>
+            <button className="icon-btn" onClick={configureApi} title="Conectar ao OmniVoice"><Settings2 size={17}/></button>
+          </div>
+        </header>
+
+        <section className="workspace">
+          <div className="composer">
+            <section className="card identity-card">
+              <div className="card__heading"><div className="step">01</div><div><h2>Identidade da voz</h2><p>A amostra define quem está falando.</p></div><div className="badge">VOICE ID</div></div>
+              <div className="upload-grid">
+                <FileSlot title="Áudio de referência" subtitle="WAV, MP3 · ideal até 10s" accept="audio/*" icon={<FileAudio size={18}/>} file={voiceAudio} onFile={setVoiceAudio}/>
+                <FileSlot title="Ou envie um vídeo" subtitle="O áudio será extraído" accept="video/*" icon={<Video size={18}/>} file={voiceVideo} onFile={setVoiceVideo}/>
+              </div>
+              <details className="clean-details"><summary>Transcrição da amostra <span>recomendado</span></summary><textarea value={voiceTranscript} onChange={e => setVoiceTranscript(e.target.value)} placeholder="Escreva exatamente o que foi falado na amostra..."/></details>
+            </section>
+
+            <section className="card script-card">
+              <div className="card__heading"><div className="step">02</div><div><h2>Roteiro</h2><p>Escreva exatamente o que a voz deve falar.</p></div><div className="chars">{script.length} caracteres</div></div>
+              <div className="script-shell"><textarea value={script} onChange={e => setScript(e.target.value)} placeholder="Cole ou escreva o roteiro..."/><div className="script-toolbar"><span><Sparkles size={14}/> Português · Brasil</span><span>Modelo: OmniVoice</span></div></div>
+            </section>
+
+            <section className={`card performance-card ${performanceOpen ? 'is-open' : ''}`}>
+              <button className="section-toggle" onClick={() => setPerformanceOpen(!performanceOpen)}><div className="card__heading card__heading--toggle"><div className="step">03</div><div><h2>Performance <span className="beta">BETA</span></h2><p>Use outra gravação para orientar ritmo, pausas e dinâmica.</p></div></div><ChevronDown size={18}/></button>
+              {performanceOpen && <div className="performance-body">
+                <div className="notice"><WandSparkles size={17}/><span>A identidade vocal continua vindo da etapa 01. Aqui usamos somente a <b>interpretação</b> da referência.</span></div>
+                <div className="upload-grid">
+                  <FileSlot title="Áudio de performance" subtitle="Cadência, energia e pausas" accept="audio/*" icon={<Headphones size={18}/>} file={perfAudio} onFile={setPerfAudio}/>
+                  <FileSlot title="Ou envie um vídeo" subtitle="A fala será analisada" accept="video/*" icon={<Video size={18}/>} file={perfVideo} onFile={setPerfVideo}/>
+                </div>
+                <textarea className="mini-textarea" value={perfTranscript} onChange={e => setPerfTranscript(e.target.value)} placeholder="Transcrição da performance · opcional"/>
+                <div className="control-row">
+                  <div className="control"><div className="control__top"><span>Força do espelhamento</span><b>{Math.round(strength*100)}%</b></div><input type="range" min="0" max="1" step=".05" value={strength} onChange={e => setStrength(Number(e.target.value))}/></div>
+                  <label className="switch-line"><span><strong>Estrutura de pausas</strong><small>Espelhar pausas da referência</small></span><input type="checkbox" checked={mirrorPauses} onChange={e=>setMirrorPauses(e.target.checked)}/><i/></label>
+                </div>
+              </div>}
+            </section>
+
+            <section className="card advanced-card">
+              <button className="section-toggle" onClick={() => setAdvancedOpen(!advancedOpen)}><div className="inline-title"><Gauge size={17}/><span>Ajustes avançados</span></div><ChevronDown size={18}/></button>
+              {advancedOpen && <div className="advanced-body"><div className="control"><div className="control__top"><span>Velocidade base</span><b>{speed.toFixed(2)}×</b></div><input type="range" min=".7" max="1.3" step=".05" value={speed} onChange={e => setSpeed(Number(e.target.value))}/></div></div>}
+            </section>
+
+            <button className={`generate ${status==='generating' ? 'generating' : ''}`} onClick={generate} disabled={status==='generating'}>{status==='generating' ? <><span className="spinner"/> GERANDO · {progress}%</> : <><Zap size={18}/> GERAR VOZ</>}</button>
+          </div>
+
+          <aside className="result-panel">
+            <div className="result-panel__top"><div><span className="eyebrow">STUDIO OUTPUT</span><h2>Resultado</h2></div><div className={`status-pill ${status}`}><span/>{status==='idle' ? 'Aguardando' : status==='generating' ? 'Gerando' : 'Concluído'}</div></div>
+            <div className={`player-card ${status==='done' ? 'player-card--ready' : ''}`}><div className="player-art"><AudioLines size={30}/>{status==='done' && <span className="ready-check"><Check size={12}/></span>}</div><div className="player-copy"><strong>{status==='done' ? 'autoride_voice_001' : 'Sua geração aparecerá aqui'}</strong><small>{status==='done' ? 'OmniVoice · Português · geração real' : 'Envie a voz e escreva o roteiro'}</small></div></div>
+            <div className="wave-wrap"><WaveBars/>{status==='generating' && <div className="progress-line" style={{width:`${progress}%`}}/>}</div>
+            <div className="transport"><button className="round"><RotateCcw size={15}/></button><button className="play" disabled={status!=='done'} onClick={togglePlayback}>{playing ? <Pause size={20}/> : <Play size={20} fill="currentColor"/>}</button><button className="round"><MoreHorizontal size={16}/></button></div>
+            <audio ref={audioPlayer} src={mp3Url || undefined} onEnded={()=>setPlaying(false)} onLoadedMetadata={(e)=>setDuration(e.currentTarget.duration || 0)} />
+            <div className="time-row"><span>00:00</span><span>{status==='done' ? `${Math.floor(duration/60).toString().padStart(2,'0')}:${Math.floor(duration%60).toString().padStart(2,'0')}` : '--:--'}</span></div>
+            <div className="generation-meta"><div><span>Voz</span><strong>{voiceAudio?.name || voiceVideo?.name || 'Não selecionada'}</strong></div><div><span>Velocidade</span><strong>{speed.toFixed(2)}×</strong></div><div><span>Performance</span><strong>{perfAudio || perfVideo ? `${Math.round(strength*100)}%` : 'Desativada'}</strong></div></div>
+            <div className="download-grid">
+              <button disabled={status!=='done' || !mp3Url} onClick={()=>downloadAudio(mp3Url,'autoride_voz.mp3')}><Download size={16}/><span><strong>MP3</strong><small>Alta qualidade</small></span></button>
+              <button disabled={status!=='done' || !wavUrl} onClick={()=>downloadAudio(wavUrl,'autoride_voz.wav')}><Download size={16}/><span><strong>WAV</strong><small>Sem compressão</small></span></button>
+            </div>
+            <div className="pro-tip"><Sparkles size={16}/><p><b>Studio tip</b><br/>Amostra de voz limpa e curta tende a preservar melhor identidade e naturalidade.</p></div>
+            {errorMessage && <div className="api-error">{errorMessage}</div>}
+            <div className="engine-card"><div><span className="live-dot"/><b>Engine</b></div><span>{engineConnected ? 'OmniVoice / CUDA conectado' : 'Clique em ⚙ para conectar'}</span></div>
+          </aside>
+        </section>
+      </main>
+    </div>
+  );
 }
