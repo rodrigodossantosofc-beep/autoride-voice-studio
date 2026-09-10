@@ -3,8 +3,9 @@ import {
   AudioLines, ChevronDown, CircleUserRound, Clock3, Download, FileAudio,
   Gauge, Headphones, Home, Mic2, MoreHorizontal, Play,
   Settings2, SlidersHorizontal, Sparkles, Video, WandSparkles,
-  Zap, Check, Pause, RotateCcw
+  Zap, Check, Pause, RotateCcw, X
 } from 'lucide-react';
+import './media-preview.css';
 
 type FileSlotProps = {
   title: string;
@@ -17,16 +18,67 @@ type FileSlotProps = {
 
 function FileSlot({title, subtitle, accept, icon, file, onFile}: FileSlotProps) {
   const input = useRef<HTMLInputElement>(null);
+  const [previewUrl, setPreviewUrl] = useState('');
+
+  useEffect(() => {
+    if (!file) {
+      setPreviewUrl('');
+      return;
+    }
+    const url = URL.createObjectURL(file);
+    setPreviewUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [file]);
+
+  const chooseFile = () => input.current?.click();
+  const removeFile = () => {
+    if (input.current) input.current.value = '';
+    onFile(null);
+  };
+  const isAudio = !!file && file.type.startsWith('audio/');
+  const isVideo = !!file && file.type.startsWith('video/');
+
   return (
-    <button className={`file-slot ${file ? 'file-slot--active' : ''}`} onClick={() => input.current?.click()}>
+    <div className={`file-slot media-slot ${file ? 'file-slot--active media-slot--active' : ''}`}>
       <input ref={input} type="file" hidden accept={accept} onChange={(e) => onFile(e.target.files?.[0] ?? null)} />
-      <span className="file-slot__icon">{file ? <Check size={18}/> : icon}</span>
-      <span className="file-slot__copy">
-        <strong>{file ? file.name : title}</strong>
-        <small>{file ? `${(file.size / 1024 / 1024).toFixed(1)} MB · pronto` : subtitle}</small>
-      </span>
-      <span className="file-slot__action">{file ? 'Trocar' : 'Enviar'}</span>
-    </button>
+
+      {!file ? (
+        <button type="button" className="media-slot__picker" onClick={chooseFile}>
+          <span className="file-slot__icon">{icon}</span>
+          <span className="file-slot__copy">
+            <strong>{title}</strong>
+            <small>{subtitle}</small>
+          </span>
+          <span className="file-slot__action">Enviar</span>
+        </button>
+      ) : (
+        <>
+          <div className="media-slot__header">
+            <span className="file-slot__icon media-slot__ok"><Check size={18}/></span>
+            <span className="file-slot__copy">
+              <strong title={file.name}>{file.name}</strong>
+              <small>{`${(file.size / 1024 / 1024).toFixed(1)} MB · pronto`}</small>
+            </span>
+            <div className="media-slot__actions">
+              <button type="button" className="media-slot__change" onClick={chooseFile}>Trocar</button>
+              <button type="button" className="media-slot__remove" onClick={removeFile} title="Remover arquivo" aria-label="Remover arquivo"><X size={15}/></button>
+            </div>
+          </div>
+
+          {isAudio && previewUrl && (
+            <div className="media-slot__preview media-slot__preview--audio">
+              <audio controls preload="metadata" src={previewUrl} />
+            </div>
+          )}
+
+          {isVideo && previewUrl && (
+            <div className="media-slot__preview media-slot__preview--video">
+              <video controls preload="metadata" src={previewUrl} />
+            </div>
+          )}
+        </>
+      )}
+    </div>
   );
 }
 
