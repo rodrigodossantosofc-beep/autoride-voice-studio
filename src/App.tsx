@@ -253,8 +253,8 @@ export default function App() {
             <section className="card identity-card">
               <div className="card__heading"><div className="step">01</div><div><h2>Identidade da voz</h2><p>A amostra define quem está falando.</p></div><div className="badge">VOICE ID</div></div>
               <div className="upload-grid">
-                <FileSlot title="Áudio de referência" subtitle="WAV, MP3 · edite a voz aqui" accept="audio/*" icon={<FileAudio size={18}/>} file={voiceAudio} onFile={file => { setVoiceAudio(file); if(file) {setVoiceVideo(null);setEditing('voiceAudio');} }} onEdit={()=>setEditing('voiceAudio')}/>
-                <FileSlot title="Ou envie um vídeo" subtitle="Extraia e edite a voz aqui" accept="video/*" icon={<Video size={18}/>} file={voiceVideo} onFile={file => { setVoiceVideo(file); if(file) {setVoiceAudio(null);setEditing('voiceVideo');} }} onEdit={()=>setEditing('voiceVideo')}/>
+                <FileSlot title="Áudio de referência" subtitle="WAV, MP3 · escolha uma voz de 3 a 10s" accept="audio/*" icon={<FileAudio size={18}/>} file={voiceAudio} onFile={file => { setVoiceAudio(file); if(file) {setVoiceVideo(null);setVoiceTranscript('');setEditing('voiceAudio');} }} onEdit={()=>setEditing('voiceAudio')}/>
+                <FileSlot title="Ou envie um vídeo" subtitle="Escolha uma voz de 3 a 10s" accept="video/*" icon={<Video size={18}/>} file={voiceVideo} onFile={file => { setVoiceVideo(file); if(file) {setVoiceAudio(null);setVoiceTranscript('');setEditing('voiceVideo');} }} onEdit={()=>setEditing('voiceVideo')}/>
               </div>
               <details className="clean-details"><summary>Transcrição da amostra <span>recomendado</span></summary><textarea value={voiceTranscript} onChange={e => setVoiceTranscript(e.target.value)} placeholder="Escreva exatamente o que foi falado na amostra..."/></details>
             </section>
@@ -313,9 +313,9 @@ export default function App() {
         onCancel={()=>setEditing(null)}
         onApply={file=>{
           if(editing==='result') { audioPlayer.current?.pause();setPlaying(false);setEditedResultUrl(URL.createObjectURL(file)); }
-          else if(editing==='voiceVideo') {setVoiceVideo(null);setVoiceAudio(file);}
+          else if(editing==='voiceVideo') {setVoiceVideo(null);setVoiceAudio(file);setVoiceTranscript('');}
           else if(editing==='perfVideo') {setPerfVideo(null);setPerfAudio(file);}
-          else if(editing==='voiceAudio') setVoiceAudio(file);
+          else if(editing==='voiceAudio') {setVoiceAudio(file);setVoiceTranscript('');}
           else setPerfAudio(file);
           setEditing(null);
         }}/>
