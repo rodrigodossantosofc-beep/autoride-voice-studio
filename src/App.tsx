@@ -6,6 +6,7 @@ import {
   Zap, Check, Pause, RotateCcw, X
 } from 'lucide-react';
 import './media-preview.css';
+import AudioTrimmer from './AudioTrimmer';
 
 type FileSlotProps = {
   title: string;
@@ -14,9 +15,10 @@ type FileSlotProps = {
   icon: React.ReactNode;
   file: File | null;
   onFile: (file: File | null) => void;
+  onEdit: () => void;
 };
 
-function FileSlot({title, subtitle, accept, icon, file, onFile}: FileSlotProps) {
+function FileSlot({title, subtitle, accept, icon, file, onFile, onEdit}: FileSlotProps) {
   const input = useRef<HTMLInputElement>(null);
   const [previewUrl, setPreviewUrl] = useState('');
 
@@ -60,6 +62,7 @@ function FileSlot({title, subtitle, accept, icon, file, onFile}: FileSlotProps) 
               <small>{`${(file.size / 1024 / 1024).toFixed(1)} MB · pronto`}</small>
             </span>
             <div className="media-slot__actions">
+              <button type="button" className="media-slot__change" onClick={onEdit}>Cortar</button>
               <button type="button" className="media-slot__change" onClick={chooseFile}>Trocar</button>
               <button type="button" className="media-slot__remove" onClick={removeFile} title="Remover arquivo" aria-label="Remover arquivo"><X size={15}/></button>
             </div>
@@ -109,7 +112,12 @@ export default function App() {
   const [wavUrl, setWavUrl] = useState('');
   const [duration, setDuration] = useState(0);
   const [errorMessage, setErrorMessage] = useState('');
+  const [editing, setEditing] = useState<'voiceAudio'|'voiceVideo'|'perfAudio'|'perfVideo'|'result'|null>(null);
+  const [editedResultUrl, setEditedResultUrl] = useState('');
   const audioPlayer = useRef<HTMLAudioElement>(null);
+  const resultAudio = editedResultUrl || mp3Url;
+
+  useEffect(() => () => { if (editedResultUrl) URL.revokeObjectURL(editedResultUrl); }, [editedResultUrl]);
 
   const normalizedApiUrl = apiUrl.trim().replace(/\/$/, '');
 
@@ -153,7 +161,7 @@ export default function App() {
   };
 
   const togglePlayback = async () => {
-    if (!audioPlayer.current || !mp3Url) return;
+    if (!audioPlayer.current || !resultAudio) return;
     if (audioPlayer.current.paused) { await audioPlayer.current.play(); setPlaying(true); }
     else { audioPlayer.current.pause(); setPlaying(false); }
   };
@@ -171,6 +179,7 @@ export default function App() {
     setErrorMessage('');
     setMp3Url('');
     setWavUrl('');
+    setEditedResultUrl('');
     setPlaying(false);
 
     const timer = window.setInterval(() => {
@@ -205,7 +214,6 @@ export default function App() {
       setStatus('idle');
       setProgress(0);
       setEngineConnected(false);
-      alert(`Não foi possível gerar a voz: ${message}`);
     } finally {
       window.clearInterval(timer);
     }
@@ -245,8 +253,8 @@ export default function App() {
             <section className="card identity-card">
               <div className="card__heading"><div className="step">01</div><div><h2>Identidade da voz</h2><p>A amostra define quem está falando.</p></div><div className="badge">VOICE ID</div></div>
               <div className="upload-grid">
-                <FileSlot title="Áudio de referência" subtitle="WAV, MP3 · ideal até 10s" accept="audio/*" icon={<FileAudio size={18}/>} file={voiceAudio} onFile={setVoiceAudio}/>
-                <FileSlot title="Ou envie um vídeo" subtitle="O áudio será extraído" accept="video/*" icon={<Video size={18}/>} file={voiceVideo} onFile={setVoiceVideo}/>
+                <FileSlot title="Áudio de referência" subtitle="WAV, MP3 · ideal até 10s" accept="audio/*" icon={<FileAudio size={18}/>} file={voiceAudio} onFile={file => { setVoiceAudio(file); if(file) setVoiceVideo(null); }} onEdit={()=>setEditing('voiceAudio')}/>
+                <FileSlot title="Ou envie um vídeo" subtitle="O áudio será extraído" accept="video/*" icon={<Video size={18}/>} file={voiceVideo} onFile={file => { setVoiceVideo(file); if(file) setVoiceAudio(null); }} onEdit={()=>setEditing('voiceVideo')}/>
               </div>
               <details className="clean-details"><summary>Transcrição da amostra <span>recomendado</span></summary><textarea value={voiceTranscript} onChange={e => setVoiceTranscript(e.target.value)} placeholder="Escreva exatamente o que foi falado na amostra..."/></details>
             </section>
@@ -261,8 +269,8 @@ export default function App() {
               {performanceOpen && <div className="performance-body">
                 <div className="notice"><WandSparkles size={17}/><span>A identidade vocal continua vindo da etapa 01. Aqui usamos somente a <b>interpretação</b> da referência.</span></div>
                 <div className="upload-grid">
-                  <FileSlot title="Áudio de performance" subtitle="Cadência, energia e pausas" accept="audio/*" icon={<Headphones size={18}/>} file={perfAudio} onFile={setPerfAudio}/>
-                  <FileSlot title="Ou envie um vídeo" subtitle="A fala será analisada" accept="video/*" icon={<Video size={18}/>} file={perfVideo} onFile={setPerfVideo}/>
+                  <FileSlot title="Áudio de performance" subtitle="Cadência, energia e pausas" accept="audio/*" icon={<Headphones size={18}/>} file={perfAudio} onFile={file => {setPerfAudio(file); if(file) setPerfVideo(null);}} onEdit={()=>setEditing('perfAudio')}/>
+                  <FileSlot title="Ou envie um vídeo" subtitle="A fala será analisada" accept="video/*" icon={<Video size={18}/>} file={perfVideo} onFile={file => {setPerfVideo(file); if(file) setPerfAudio(null);}} onEdit={()=>setEditing('perfVideo')}/>
                 </div>
                 <textarea className="mini-textarea" value={perfTranscript} onChange={e => setPerfTranscript(e.target.value)} placeholder="Transcrição da performance · opcional"/>
                 <div className="control-row">
@@ -284,20 +292,34 @@ export default function App() {
             <div className="result-panel__top"><div><span className="eyebrow">STUDIO OUTPUT</span><h2>Resultado</h2></div><div className={`status-pill ${status}`}><span/>{status==='idle' ? 'Aguardando' : status==='generating' ? 'Gerando' : 'Concluído'}</div></div>
             <div className={`player-card ${status==='done' ? 'player-card--ready' : ''}`}><div className="player-art"><AudioLines size={30}/>{status==='done' && <span className="ready-check"><Check size={12}/></span>}</div><div className="player-copy"><strong>{status==='done' ? 'autoride_voice_001' : 'Sua geração aparecerá aqui'}</strong><small>{status==='done' ? 'OmniVoice · Português · geração real' : 'Envie a voz e escreva o roteiro'}</small></div></div>
             <div className="wave-wrap"><WaveBars/>{status==='generating' && <div className="progress-line" style={{width:`${progress}%`}}/>}</div>
-            <div className="transport"><button className="round"><RotateCcw size={15}/></button><button className="play" disabled={status!=='done'} onClick={togglePlayback}>{playing ? <Pause size={20}/> : <Play size={20} fill="currentColor"/>}</button><button className="round"><MoreHorizontal size={16}/></button></div>
-            <audio ref={audioPlayer} src={mp3Url || undefined} onEnded={()=>setPlaying(false)} onLoadedMetadata={(e)=>setDuration(e.currentTarget.duration || 0)} />
+            <div className="transport"><button className="round" disabled={status!=='done'} onClick={()=>{if(audioPlayer.current){audioPlayer.current.currentTime=0; audioPlayer.current.play();setPlaying(true);}}} aria-label="Reiniciar áudio"><RotateCcw size={15}/></button><button className="play" disabled={status!=='done'} onClick={togglePlayback}>{playing ? <Pause size={20}/> : <Play size={20} fill="currentColor"/>}</button><button className="round" disabled={status!=='done'} onClick={()=>setEditing('result')} aria-label="Cortar áudio gerado"><SlidersHorizontal size={16}/></button></div>
+            <audio ref={audioPlayer} src={resultAudio || undefined} onEnded={()=>setPlaying(false)} onLoadedMetadata={(e)=>setDuration(e.currentTarget.duration || 0)} />
+            {status==='done' && <div className="result-edit-actions"><button type="button" onClick={()=>setEditing('result')}>Cortar áudio</button><button type="button" onClick={generate}>Refazer geração</button></div>}
             <div className="time-row"><span>00:00</span><span>{status==='done' ? `${Math.floor(duration/60).toString().padStart(2,'0')}:${Math.floor(duration%60).toString().padStart(2,'0')}` : '--:--'}</span></div>
             <div className="generation-meta"><div><span>Voz</span><strong>{voiceAudio?.name || voiceVideo?.name || 'Não selecionada'}</strong></div><div><span>Velocidade</span><strong>{speed.toFixed(2)}×</strong></div><div><span>Performance</span><strong>{perfAudio || perfVideo ? `${Math.round(strength*100)}%` : 'Desativada'}</strong></div></div>
             <div className="download-grid">
-              <button disabled={status!=='done' || !mp3Url} onClick={()=>downloadAudio(mp3Url,'autoride_voz.mp3')}><Download size={16}/><span><strong>MP3</strong><small>Alta qualidade</small></span></button>
-              <button disabled={status!=='done' || !wavUrl} onClick={()=>downloadAudio(wavUrl,'autoride_voz.wav')}><Download size={16}/><span><strong>WAV</strong><small>Sem compressão</small></span></button>
+              <button disabled={status!=='done' || !mp3Url} onClick={()=>downloadAudio(mp3Url,'autoride_voz_original.mp3')}><Download size={16}/><span><strong>MP3 original</strong><small>Geração completa</small></span></button>
+              <button disabled={status!=='done' || !(editedResultUrl || wavUrl)} onClick={()=>downloadAudio(editedResultUrl || wavUrl,editedResultUrl ? 'autoride_voz_recortada.wav' : 'autoride_voz.wav')}><Download size={16}/><span><strong>{editedResultUrl ? 'WAV recortado' : 'WAV'}</strong><small>{editedResultUrl ? 'Trecho selecionado' : 'Sem compressão'}</small></span></button>
             </div>
             <div className="pro-tip"><Sparkles size={16}/><p><b>Studio tip</b><br/>Amostra de voz limpa e curta tende a preservar melhor identidade e naturalidade.</p></div>
-            {errorMessage && <div className="api-error">{errorMessage}</div>}
+            {errorMessage && <div className="api-error" role="alert">{errorMessage} <button type="button" onClick={generate}>Tentar novamente</button></div>}
             <div className="engine-card"><div><span className="live-dot"/><b>Engine</b></div><span>{engineConnected ? 'OmniVoice / CUDA conectado' : 'Clique em ⚙ para conectar'}</span></div>
           </aside>
         </section>
       </main>
+      {editing && (editing==='result' ? resultAudio : ({voiceAudio,voiceVideo,perfAudio,perfVideo})[editing]) && <AudioTrimmer
+        source={editing==='result' ? resultAudio : ({voiceAudio,voiceVideo,perfAudio,perfVideo})[editing]!}
+        title={editing==='result' ? 'Cortar áudio gerado' : 'Cortar amostra antes de gerar'}
+        onCancel={()=>setEditing(null)}
+        onApply={file=>{
+          if(editing==='result') { audioPlayer.current?.pause();setPlaying(false);setEditedResultUrl(URL.createObjectURL(file)); }
+          else if(editing==='voiceVideo') {setVoiceVideo(null);setVoiceAudio(file);}
+          else if(editing==='perfVideo') {setPerfVideo(null);setPerfAudio(file);}
+          else if(editing==='voiceAudio') setVoiceAudio(file);
+          else setPerfAudio(file);
+          setEditing(null);
+        }}/>
+      }
     </div>
   );
 }

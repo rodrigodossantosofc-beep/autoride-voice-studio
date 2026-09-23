@@ -21,7 +21,7 @@ Este pacote é a **camada de produto/interface**. Ele não tenta carregar CUDA/P
 
 O OmniVoice continua no ambiente com GPU (por exemplo, seu Colab atual). Depois, a interface pode ser conectada ao motor por uma API HTTP.
 
-A prévia atual usa um fluxo visual simulado ao clicar em "GERAR VOZ", para que você consiga avaliar a roupagem imediatamente no Google AI Studio.
+O botão "GERAR VOZ" envia uma requisição real ao OmniVoice configurado na engrenagem. Sem uma API online, a interface abre normalmente, mas não gera áudio.
 
 ## Abrir no Google AI Studio
 
@@ -33,7 +33,14 @@ A prévia atual usa um fluxo visual simulado ao clicar em "GERAR VOZ", para que 
 6. Peça ao agente:  
    `Preserve exatamente o design e o fluxo deste projeto. Apenas faça o projeto rodar no preview. Não simplifique a interface.`
 
-## Próxima ligação com o motor
+## Recorte e nova tentativa
+
+- Após enviar áudio ou vídeo de identidade/performance, use **Cortar** para selecionar o começo e o fim. Em vídeos, o trecho selecionado é extraído como áudio antes do envio ao motor. O recorte substitui a amostra no formulário; **Trocar** permite escolher outro arquivo.
+- Depois de gerar, use **Cortar áudio** no painel de resultado. O player reproduz o recorte e **WAV recortado** baixa só o trecho selecionado. **MP3 original** mantém a geração completa.
+- **Refazer geração** envia novamente o roteiro e as amostras atuais ao OmniVoice. Se uma tentativa falhar, use **Tentar novamente**.
+- O corte é feito no navegador. Vídeos são gravados em tempo real para extrair apenas o áudio; mantenha a aba aberta até terminar. A geração continua dependendo do motor OmniVoice externo.
+
+## Contrato do motor
 
 Contrato recomendado para o motor externo:
 
