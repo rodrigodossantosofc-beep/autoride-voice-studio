@@ -1,9 +1,8 @@
-/** Keep edits local to the browser; the OmniVoice endpoint only receives the chosen excerpt. */
-function encodeWav(buffer: AudioBuffer, start: number, end: number): Blob {
-  const from = Math.floor(start * buffer.sampleRate);
-  const to = Math.min(buffer.length, Math.ceil(end * buffer.sampleRate));
-  const frames = to - from;
+export type Segment = {start: number; end: number};
+
+function encodeWav(buffer: AudioBuffer, segments: Segment[]): Blob {
   const channels = buffer.numberOfChannels;
+  const frames = segments.reduce((sum, part) => sum + Math.max(0, Math.min(buffer.length, Math.round(part.end * buffer.sampleRate)) - Math.round(part.start * buffer.sampleRate)), 0);
   const data = new ArrayBuffer(44 + frames * channels * 2);
   const view = new DataView(data);
   const write = (offset: number, value: string) => {
@@ -18,21 +17,23 @@ function encodeWav(buffer: AudioBuffer, start: number, end: number): Blob {
   write(36, 'data'); view.setUint32(40, frames * channels * 2, true);
   const samples = Array.from({length: channels}, (_, ch) => buffer.getChannelData(ch));
   let offset = 44;
-  for (let i = from; i < to; i++) for (let ch = 0; ch < channels; ch++) {
-    const sample = Math.max(-1, Math.min(1, samples[ch][i]));
-    view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7fff, true);
-    offset += 2;
+  for (const part of segments) {
+    const from = Math.max(0, Math.round(part.start * buffer.sampleRate));
+    const to = Math.min(buffer.length, Math.round(part.end * buffer.sampleRate));
+    for (let i = from; i < to; i++) for (let ch = 0; ch < channels; ch++) {
+      const sample = Math.max(-1, Math.min(1, samples[ch][i]));
+      view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7fff, true);
+      offset += 2;
+    }
   }
   return new Blob([data], {type: 'audio/wav'});
 }
 
-async function recordVideoAudio(file: File, start: number, end: number): Promise<Blob> {
+async function recordVideoAudio(file: File, duration: number): Promise<ArrayBuffer> {
   const video = document.createElement('video');
   const url = URL.createObjectURL(file);
   video.src = url;
   video.preload = 'auto';
-  // Route the sound only into the recorder, never to the speakers.
-  video.muted = false;
   video.playsInline = true;
   const context = new AudioContext();
   try {
@@ -44,22 +45,22 @@ async function recordVideoAudio(file: File, start: number, end: number): Promise
     const source = context.createMediaElementSource(video);
     const destination = context.createMediaStreamDestination();
     source.connect(destination);
-    if (start > 0) {
-      video.currentTime = start;
-      await new Promise<void>((resolve) => { video.onseeked = () => resolve(); });
-    }
-    const type = ['audio/webm;codecs=opus', 'audio/webm'].find(MediaRecorder.isTypeSupported);
-    if (!type) throw new Error('Este navegador não permite extrair o áudio do vídeo.');
+    const type = ['audio/webm;codecs=opus', 'audio/webm'].find(value => MediaRecorder.isTypeSupported(value));
+    if (!type) throw new Error('Este navegador não permite extrair áudio do vídeo.');
     const recorder = new MediaRecorder(destination.stream, {mimeType: type});
     const chunks: BlobPart[] = [];
     recorder.ondataavailable = event => { if (event.data.size) chunks.push(event.data); };
-    const completed = new Promise<Blob>((resolve, reject) => {
-      recorder.onerror = () => reject(new Error('Falha ao gravar o trecho selecionado.'));
-      recorder.onstop = () => resolve(new Blob(chunks, {type}));
+    const completed = new Promise<ArrayBuffer>((resolve, reject) => {
+      recorder.onerror = () => reject(new Error('Falha ao ler a faixa de áudio do vídeo.'));
+      recorder.onstop = async () => resolve(await new Blob(chunks, {type}).arrayBuffer());
     });
     recorder.start();
     await video.play();
-    await new Promise<void>(resolve => window.setTimeout(resolve, (end - start) * 1000));
+    await new Promise<void>(resolve => {
+      const stop = () => { video.removeEventListener('ended', stop); resolve(); };
+      video.addEventListener('ended', stop);
+      window.setTimeout(stop, (duration + 2) * 1000);
+    });
     recorder.stop();
     video.pause();
     return await completed;
@@ -70,12 +71,7 @@ async function recordVideoAudio(file: File, start: number, end: number): Promise
   }
 }
 
-export async function trimAudio(source: File | string, start: number, end: number): Promise<File> {
-  if (end - start < 0.2) throw new Error('Selecione pelo menos 0,2 segundo de áudio.');
-  if (source instanceof File && source.type.startsWith('video/')) {
-    const blob = await recordVideoAudio(source, start, end);
-    return new File([blob], 'amostra-recortada.webm', {type: blob.type});
-  }
+export async function decodeSource(source: File | string): Promise<AudioBuffer> {
   const localUrl = source instanceof File ? URL.createObjectURL(source) : null;
   let bytes: ArrayBuffer;
   try {
@@ -87,9 +83,23 @@ export async function trimAudio(source: File | string, start: number, end: numbe
   }
   const context = new AudioContext();
   try {
-    const decoded = await context.decodeAudioData(bytes);
-    return new File([encodeWav(decoded, start, end)], 'audio-recortado.wav', {type: 'audio/wav'});
-  } finally {
-    await context.close();
-  }
+    try { return await context.decodeAudioData(bytes.slice(0)); }
+    catch (error) {
+      if (!(source instanceof File) || !source.type.startsWith('video/')) throw error;
+      const video = document.createElement('video');
+      const url = URL.createObjectURL(source);
+      const duration = await new Promise<number>((resolve, reject) => {
+        video.onloadedmetadata = () => resolve(video.duration);
+        video.onerror = () => reject(new Error('Não foi possível abrir o vídeo.'));
+        video.src = url;
+      }).finally(() => URL.revokeObjectURL(url));
+      if (!Number.isFinite(duration)) throw new Error('Não foi possível identificar a duração do vídeo.');
+      return await context.decodeAudioData(await recordVideoAudio(source, duration));
+    }
+  } finally { await context.close(); }
+}
+
+export function exportSegments(buffer: AudioBuffer, segments: Segment[]): File {
+  if (segments.reduce((sum, part) => sum + part.end - part.start, 0) < .2) throw new Error('Deixe pelo menos 0,2 segundo de áudio.');
+  return new File([encodeWav(buffer, segments)], 'audio-editado.wav', {type: 'audio/wav'});
 }
